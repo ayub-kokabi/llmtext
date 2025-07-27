@@ -1,0 +1,40 @@
+[package]
+name = "llmtext"
+version = "0.1.0"
+description = "Turns any website into a single LLM-ready markdown file"
+authors = ["Ayub Kokabi <sir.kokabi@gmail.com>"]
+edition = "2024"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/sir-kokabi/llmtext"
+homepage = "https://github.com/sir-kokabi/llmtext"
+keywords = ["cli", "scraper", "llm", "ai", "markdown"]
+categories = ["command-line-utilities", "web-scraping", "development-tools","text-processing"]
+
+[[bin]]
+name = "llmtext"
+path = "src/main.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[dependencies]
+color-eyre = "0.6.5"
+
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "gzip", "brotli"] }
+url = "2.5.4"
+scraper = "0.23.1"
+html2md = "0.2.15"
+
+clap = { version = "4.5.41", features = ["derive"] }
+indicatif = { version = "0.18", features = ["tokio"] }
+futures = "0.3"
+
+arboard = "3.6.0"
+dunce = "1.0.5"
+sanitize-filename = "0.6.0"
+num_cpus = "1.17.0"
