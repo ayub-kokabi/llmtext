@@ -139,4 +139,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 Contributions, issues, and feature requests are welcome!
 
 Feel free to check the [issues page](https://github.com/sir-kokabi/llmtext/issues).
-```
