@@ -68,7 +68,7 @@ https://react.dev/learn/adding-interactivity
 Then, run `llmtext` with the `-u` or `--urls` flag:
 
 ```bash
-llmtext -u links.txt -o react-learn.md
+llmtext -u links.txt -o react-docs.md
 ```
 
 ## 📋 Command-Line Options
