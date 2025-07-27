@@ -84,7 +84,7 @@ llmtext -u links.txt -o react-learn.md
 | `--verbose`                 | `-v`  | Show detailed processing steps.                      |
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/sir-kokabi/llmtext/blob/main/LICENCE) file for details.
 
 ## Contributing
 Contributions, issues, and feature requests are welcome! Check the [issues page](https://github.com/sir-kokabi/llmtext/issues).
