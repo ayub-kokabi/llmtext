@@ -1,141 +1,90 @@
 # llmtext 🤖🔗📝
 
-**Tired of outdated LLM answers? `llmtext` scrapes entire documentation sites into a single file, giving your AI the up-to-date context it needs.**
+**Turn any website into a single Markdown file, ready to be used as updated context for any LLM chatbot**
 
 [![Crates.io](https://img.shields.io/crates/v/llmtext.svg)](https://crates.io/crates/llmtext)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/your-username/llmtext/rust.yml?branch=main)](https://github.com/sir-kokabi/llmtext/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/sir-kokabi/llmtext/rust.yml?branch=main)](https://github.com/sir-kokabi/llmtext/actions)
 
 ---
 
 ## The Problem
 
-You're working with the latest version of a framework like React, Rust's Tokio, or Vue. You ask your favorite Large Language Model (LLM) a question, but it confidently gives you an answer that's... wrong. It's using an API from two versions ago.
+LLMs have a knowledge cutoff date. Ask a question about a new library version, and you'll likely get an outdated answer. Manually copy-pasting documentation into your prompt is slow, tedious, and error-prone.
 
-The reason? LLMs have a **knowledge cutoff date**. They don't know about the latest updates, API changes, or new features in the documentation you're reading. The only way to get accurate answers is to manually copy and paste page after page of documentation into the prompt. It's tedious, error-prone, and kills your productivity.
+## The Solution: `llmtext`
 
-## The Solution
-
-**Enter `llmtext`**.
-
-`llmtext` is a lightning-fast command-line tool that automates this entire process. You give it one URL, and it intelligently finds all the internal links, fetches their content, and compiles everything into a **single, clean Markdown file**.
-
-This file is perfectly formatted to be used as a context source for any LLM, effectively giving it a "brain upgrade" with the latest information.
+`llmtext` is a lightning-fast CLI tool that automates this process. Just give it a URL — it scrapes the page and all internal links it references, converts the content into Markdown, and saves everything as a single file. This file gives your LLM the up-to-date context it needs to provide accurate answers.
 
 ## ✨ Key Features
 
--   **🚀 Single-URL Scraping**: Provide one URL (like the homepage of a documentation site), and `llmtext` will discover and scrape all internal pages.
--   **🎯 Multi-URL Fetching**: Provide a list of specific URLs to fetch only the pages you need.
--   **⚡ Blazing Fast**: Uses asynchronous requests and parallel downloads to fetch content quickly.
--   **📋 Clipboard Integration**: Instantly copy the entire Markdown output to your clipboard with the `-C` flag.
--   **🤖 LLM-Ready Output**: Converts all content to clean Markdown, ideal for pasting into LLM prompts.
--   **🤫 Quiet by Default**: No unnecessary output, but a `-v` / `--verbose` flag is available to see all the details.
+-   **🎯 Easy usage**: Give it one URL, and it scrapes all internal links on that page.
+-   **📄 Single Page Mode**: Need just one page? Use the `--single` flag.
+-   **📁 Fetch from File**: Process a list of URLs from a text file.
+-   **⚡ Blazing Fast**: Built in Rust with async requests for maximum speed.
+-   **📋 Clipboard Integration**: Copy the full Markdown output directly to your clipboard.
+-   **🤖 LLM-Ready Output**: Clean, structured Markdown perfect for any AI prompt.
 
 ## 📦 Installation
 
-There are several ways to install `llmtext`, depending on your needs.
-
-### Option 1: From Crates.io (Recommended)
-
-This is the easiest method for most users. If you have the Rust toolchain, you can install the latest stable version directly from the official Rust package registry.
-
 ```bash
+# From Crates.io (Recommended)
 cargo install llmtext
-```
 
-### Option 2: From GitHub (Latest Development Version)
-
-If you want the absolute latest features and updates that haven't been published to Crates.io yet, you can install directly from the `main` branch of this repository.
-
-```bash
+# From GitHub (Latest development version)
 cargo install --git https://github.com/sir-kokabi/llmtext.git
 ```
 
-To update to the latest version later, simply run the same command again with the `--force` flag:
-```bash
-cargo install --git https://github.com/sir-kokabi/llmtext.git --force
-```
+## 🚀 Usage Examples
 
-### Option 3: For Contributors (Build from Local Clone)
+#### 1. Scrape a Documentation Section
 
-If you plan to contribute to the project, you'll need to clone the repository and build it locally. This allows you to make changes and test them.
+This command finds all links on the target page and scrapes their content.
 
 ```bash
-git clone https://github.com/sir-kokabi/llmtext.git
-cd llmtext
-
-cargo install --path .
+# Scrape the React reference documentation
+llmtext https://react.dev/reference/react
 ```
+This saves the content to a file like `react.dev_reference_react.md`.
 
-##  usage
+#### 2. Get a Single Page
 
-### 1. Scrape an Entire Site
-
-This is the primary use case. Just provide the base URL of the documentation.
+Use the `-s` or `--single` flag to get content from only one URL, without internal links.
 
 ```bash
-llmtext https://tokio.rs/tokio/tutorial
+llmtext -s https://react.dev/reference/react
 ```
 
-This command will find all links within `tokio.rs` that are part of the tutorial, fetch them, and save them to a file named `tokio.rs_tokio_tutorial.md`.
+#### 3. Fetch a List of URLs from a File
 
-### 2. Fetch a Specific List of URLs
+Create a file `links.txt` with one URL per line:
 
-If you only need a few pages, list them out.
+```
+# links.txt
+https://react.dev/learn
+https://react.dev/learn/describing-the-ui
+https://react.dev/learn/adding-interactivity
+```
+
+Then, run `llmtext` with the `-u` or `--urls` flag:
 
 ```bash
-llmtext https://react.dev/learn/state-a-components-memory https://react.dev/learn/responding-to-events
+llmtext -u links.txt -o react-learn.md
 ```
 
-### 3. Command-Line Options
+## 📋 Command-Line Options
 
-Customize the behavior with these flags:
-
-| Flag                        | Description                                          | Example                                                  |
-| --------------------------- | ---------------------------------------------------- | -------------------------------------------------------- |
-| `-o`, `--output <PATH>`     | Specify a custom output file name.                   | `llmtext -o react-docs.md https://react.dev`             |
-| `-P`, `--parallel <NUM>`    | Set the number of parallel downloads.                | `llmtext --parallel 5 <URL>`                             |
-| `-C`, `--clipboard`         | Copy the final Markdown to the clipboard.            | `llmtext -C <URL>`                                       |
-| `-v`, `--verbose`           | Show detailed processing steps and all fetched URLs. | `llmtext -v <URL>`                                       |
-
-## 🚀 Example Workflow: From Scraping to AI Prompt
-
-Let's solve a real-world problem: getting up-to-date answers about the Rust `tokio` library.
-
-**Step 1: Scrape the documentation with `llmtext`**
-
-We'll run the tool and copy the output directly to the clipboard.
-
-```bash
-llmtext --clipboard https://tokio.rs/tokio/tutorial
-```
-
-**Step 2: Prepare your LLM Prompt**
-
-Now, go to your favorite LLM (like ChatGPT, Claude, etc.) and use a prompt structure like this. The key is to instruct the model to *only* use the context you provide.
-
-```
-Based *only* on the following context, please answer my question. Do not use any of your prior knowledge.
-
---- CONTEXT ---
-
-[PASTE THE CONTENT FROM YOUR CLIPBOARD HERE]
-
---- END CONTEXT ---
-
-My Question: How do I implement a graceful shutdown for a Tokio TCP server using the mini-redis broadcast channel example?
-```
-
-**Step 3: Get an Accurate, Up-to-Date Answer!**
-
-The LLM will now generate an answer based *exclusively* on the latest documentation you provided, completely bypassing its outdated knowledge.
+| Flag                        | Short | Description                                          |
+| --------------------------- | ----- | ---------------------------------------------------- |
+| `--urls <PATH>`             | `-u`  | Read URLs from a file.                               |
+| `--single`                  | `-s`  | Process only the single URL provided.                |
+| `--output <PATH>`           | `-o`  | Specify a custom output file name.                   |
+| `--parallel <NUM>`          | `-p`  | Set the number of parallel downloads.                |
+| `--clipboard`               | `-c`  | Copy the final Markdown to the clipboard.            |
+| `--verbose`                 | `-v`  | Show detailed processing steps.                      |
 
 ## License
-
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/sir-kokabi/llmtext/blob/main/LICENCE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-Feel free to check the [issues page](https://github.com/sir-kokabi/llmtext/issues).
+Contributions, issues, and feature requests are welcome! Check the [issues page](https://github.com/sir-kokabi/llmtext/issues).
