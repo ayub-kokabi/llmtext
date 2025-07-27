@@ -1,6 +1,6 @@
 [package]
 name = "llmtext"
-version = "0.1.0"
+version = "0.1.1"
 description = "Turns any website into a single LLM-ready markdown file"
 authors = ["Ayub Kokabi <sir.kokabi@gmail.com>"]
 edition = "2024"
