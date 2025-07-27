@@ -60,7 +60,6 @@ llmtext -s https://react.dev/reference/react
 Create a file `links.txt` with one URL per line:
 
 ```
-# links.txt
 https://react.dev/learn
 https://react.dev/learn/describing-the-ui
 https://react.dev/learn/adding-interactivity
