@@ -24,7 +24,7 @@ strip = true
 color-eyre = "0.6.5"
 
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json", "gzip", "brotli"] }
+reqwest = { version = "0.12",  default-features = false, features = ["rustls-tls", "json", "gzip", "brotli"] }
 url = "2.5.4"
 scraper = "0.23.1"
 html2md = "0.2.15"
