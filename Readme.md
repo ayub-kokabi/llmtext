@@ -132,7 +132,7 @@ The LLM will now generate an answer based *exclusively* on the latest documentat
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/sir-kokabi/llmtext/blob/main/LICENCE) file for details.
 
 ## Contributing
 
