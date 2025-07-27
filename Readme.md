@@ -16,6 +16,8 @@ LLMs have a knowledge cutoff date. Ask a question about a new library version, a
 
 `llmtext` is a lightning-fast CLI tool that automates this process. Just give it a URL — it scrapes the page and all internal links it references, converts the content into Markdown, and saves everything as a single file. This file gives your LLM the up-to-date context it needs to provide accurate answers.
 
+![usage](https://github.com/user-attachments/assets/cbd04520-b492-4a14-ae84-3cb59f330465)
+
 ## ✨ Key Features
 
 -   **🎯 Easy usage**: Give it one URL, and it scrapes all internal links on that page.
