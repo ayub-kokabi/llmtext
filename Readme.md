@@ -4,7 +4,6 @@
 
 [![Crates.io](https://img.shields.io/crates/v/llmtext.svg)](https://crates.io/crates/llmtext)
 [![LICENSE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/sir-kokabi/llmtext/rust.yml?branch=main)](https://github.com/sir-kokabi/llmtext/actions)
 
 ---
 
