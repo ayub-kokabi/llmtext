@@ -9,7 +9,7 @@ readme = "README.md"
 repository = "https://github.com/sir-kokabi/llmtext"
 homepage = "https://github.com/sir-kokabi/llmtext"
 keywords = ["cli", "scraper", "llm", "ai", "markdown"]
-categories = ["command-line-utilities", "web-scraping", "development-tools","text-processing"]
+categories = ["command-line-utilities", "development-tools","text-processing"]
 
 [[bin]]
 name = "llmtext"
