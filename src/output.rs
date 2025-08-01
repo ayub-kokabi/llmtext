@@ -1,6 +1,6 @@
 use crate::models::PageData;
 use color_eyre::eyre::{Context, Result};
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use readability_rust::{Readability, ReadabilityOptions};
 use std::path::Path;
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
@@ -37,7 +37,7 @@ pub async fn save_to_markdown_async(
                 let Ok(mut parser) = Readability::new(&page.html, Some(options)) else {
                     return String::new();
                 };
-                
+
                 let article_result = parser.parse();
 
                 let clean_html = if let Some(article) = article_result {
@@ -54,7 +54,7 @@ pub async fn save_to_markdown_async(
                 if i > 0 {
                     s.push_str("\n\n\n");
                 }
-                
+
                 s.push_str(&html2md::parse_html(&clean_html));
                 s
             })

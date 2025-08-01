@@ -17,9 +17,9 @@ fn find_best_prefix(urls: &[Url]) -> Option<String> {
             continue;
         }
         let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        
+
         if !segments.is_empty() {
-             for i in 0..segments.len() {
+            for i in 0..segments.len() {
                 // Build prefix up to the current segment
                 let prefix_path = format!("/{}/", segments[0..=i].join("/"));
                 *prefix_counts.entry(prefix_path).or_insert(0) += 1;
@@ -80,11 +80,14 @@ pub async fn extract_and_sort_links(
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
         .collect();
-    
+
     if verbose {
-        println!("🔍 Found a total of {} unique internal links initially.", all_internal_urls.len());
+        println!(
+            "🔍 Found a total of {} unique internal links initially.",
+            all_internal_urls.len()
+        );
     }
-    
+
     let best_prefix_opt = find_best_prefix(&all_internal_urls);
 
     let mut final_urls: Vec<_> = if let Some(prefix) = best_prefix_opt {
@@ -97,11 +100,11 @@ pub async fn extract_and_sort_links(
             .collect()
     } else {
         if verbose {
-             println!("⚠️ Could not determine a common path prefix. Keeping all links.");
+            println!("⚠️ Could not determine a common path prefix. Keeping all links.");
         }
         all_internal_urls
     };
-    
+
     if !final_urls.iter().any(|u| u == base_url) {
         final_urls.push(base_url.clone());
     }
@@ -112,7 +115,6 @@ pub async fn extract_and_sort_links(
 
     Ok(final_urls)
 }
-
 
 /// Fetches the content of a single page.
 pub async fn fetch_page(client: Client, url: Url) -> Result<PageData, FetchError> {

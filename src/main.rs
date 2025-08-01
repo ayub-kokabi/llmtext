@@ -5,7 +5,7 @@ mod scraper;
 mod utils;
 
 use clap::{ArgGroup, Parser};
-use color_eyre::eyre::{bail, Context, Result};
+use color_eyre::eyre::{Context, Result, bail};
 use futures::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use promkit::preset::confirm::Confirm;
@@ -114,7 +114,7 @@ async fn main() -> Result<()> {
             println!();
 
             let mut confirm = Confirm::new("Proceed with scraping these links?");
-            
+
             match confirm.run().await {
                 Ok(answer) => {
                     if !["y", "yes"].contains(&answer.to_lowercase().as_str()) {
@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
 
             println!("🚀 Proceeding with scraping...\n");
         }
-        
+
         discovered_links
     } else {
         raw_urls
