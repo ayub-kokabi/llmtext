@@ -5,9 +5,10 @@ mod scraper;
 mod utils;
 
 use clap::{ArgGroup, Parser};
-use color_eyre::eyre::{Context, Result, bail};
+use color_eyre::eyre::{bail, Context, Result};
 use futures::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use promkit::preset::confirm::Confirm;
 use reqwest::Client;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -38,7 +39,7 @@ struct Cli {
     #[arg(short = 's', long)]
     single: bool,
 
-    /// The name of the output Markdown file.
+    /// The name of a custom output file.
     /// If not provided, a name is generated automatically from the first input URL.
     #[arg(short, long)]
     output: Option<PathBuf>,
@@ -98,9 +99,38 @@ async fn main() -> Result<()> {
         .context("failed to build HTTP client")?;
 
     let urls_to_fetch = if cli.urls_from_file.is_none() && raw_urls.len() == 1 && !cli.single {
-        scraper::extract_and_sort_links(&client, &raw_urls[0], cli.verbose)
+        let discovered_links = scraper::extract_and_sort_links(&client, &raw_urls[0], cli.verbose)
             .await
-            .context("failed to extract internal links")?
+            .context("failed to extract internal links")?;
+
+        if !discovered_links.is_empty() {
+            println!(
+                "\n🔍 Found {} internal links to process:",
+                discovered_links.len()
+            );
+            for (i, url) in discovered_links.iter().enumerate() {
+                println!("   {:<3} - {}", i + 1, url);
+            }
+            println!();
+
+            let mut confirm = Confirm::new("Proceed with scraping these links?");
+            
+            match confirm.run().await {
+                Ok(answer) => {
+                    if !["y", "yes"].contains(&answer.to_lowercase().as_str()) {
+                        println!("🚫 Operation aborted by user.");
+                        return Ok(());
+                    }
+                }
+                Err(e) => {
+                    bail!("Failed to run confirmation prompt: {}", e);
+                }
+            }
+
+            println!("🚀 Proceeding with scraping...\n");
+        }
+        
+        discovered_links
     } else {
         raw_urls
     };
