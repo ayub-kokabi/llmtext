@@ -1,54 +1,46 @@
 use crate::models::{FetchError, PageData};
 use color_eyre::eyre::{Context, Result};
+use rayon::prelude::*;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use std::collections::HashMap;
 use url::Url;
 
-/// Finds the most common path prefix among a list of URLs.
+/// Finds the most common path prefix among a list of URLs using parallel processing.
 /// This helps to identify the primary content section (e.g., "/docs/").
 fn find_best_prefix(urls: &[Url]) -> Option<String> {
-    let mut prefix_counts: HashMap<String, usize> = HashMap::new();
-
-    for url in urls {
-        let path = url.path();
-        // Don't count the root path "/" as a prefix for this logic.
-        if path == "/" {
-            continue;
-        }
-        let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-
-        if !segments.is_empty() {
-            for i in 0..segments.len() {
-                // Build prefix up to the current segment
-                let prefix_path = format!("/{}/", segments[0..=i].join("/"));
-                *prefix_counts.entry(prefix_path).or_insert(0) += 1;
+    let prefix_counts: HashMap<String, usize> = urls
+        .par_iter()
+        .filter(|url| url.path() != "/")
+        .flat_map(|url| {
+            let segments: Vec<&str> = url.path().split('/').filter(|s| !s.is_empty()).collect();
+            (0..segments.len())
+                .into_par_iter() // This is the fix to make the inner iterator parallel
+                .map(move |i| format!("/{}/", segments[0..=i].join("/")))
+        })
+        .fold(HashMap::new, |mut acc, prefix| {
+            *acc.entry(prefix).or_insert(0) += 1;
+            acc
+        })
+        .reduce(HashMap::new, |mut acc, other| {
+            for (k, v) in other {
+                *acc.entry(k).or_insert(0) += v;
             }
-        }
-    }
+            acc
+        });
 
-    // Find the prefix with the highest count that appears in a significant number of URLs.
-    // A threshold helps avoid choosing overly specific prefixes.
-    // Setting it to 70% of total links, but at least 2.
     let threshold = ((urls.len() as f64 * 0.7).ceil() as usize).max(2);
 
     prefix_counts
         .into_iter()
-        .filter(|&(_, count)| count >= threshold) // Must meet the threshold
+        .filter(|&(_, count)| count >= threshold)
         .max_by_key(|&(_, count)| count)
         .map(|(prefix, _)| prefix)
 }
 
 /// Fetches a single page, extracts all unique INTERNAL links, filters them
 /// by the most common path prefix, and then sorts them.
-///
-/// # Arguments
-/// * `verbose` - If true, prints intermediate steps.
-pub async fn extract_and_sort_links(
-    client: &Client,
-    base_url: &Url,
-    verbose: bool,
-) -> Result<Vec<Url>> {
+pub async fn extract_and_sort_links(client: &Client, base_url: &Url) -> Result<Vec<Url>> {
     let response = client
         .get(base_url.clone())
         .send()
@@ -81,27 +73,14 @@ pub async fn extract_and_sort_links(
         .into_iter()
         .collect();
 
-    if verbose {
-        println!(
-            "🔍 Found a total of {} unique internal links initially.",
-            all_internal_urls.len()
-        );
-    }
-
     let best_prefix_opt = find_best_prefix(&all_internal_urls);
 
     let mut final_urls: Vec<_> = if let Some(prefix) = best_prefix_opt {
-        if verbose {
-            println!("🧠 Identified common path prefix: {}", prefix);
-        }
         all_internal_urls
             .into_iter()
             .filter(|url| url.path().starts_with(&prefix))
             .collect()
     } else {
-        if verbose {
-            println!("⚠️ Could not determine a common path prefix. Keeping all links.");
-        }
         all_internal_urls
     };
 
@@ -109,7 +88,6 @@ pub async fn extract_and_sort_links(
         final_urls.push(base_url.clone());
     }
 
-    // Final sort and deduplication
     final_urls.sort_by(|a, b| a.as_str().cmp(b.as_str()));
     final_urls.dedup();
 

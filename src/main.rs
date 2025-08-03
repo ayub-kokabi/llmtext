@@ -1,15 +1,15 @@
 mod models;
 mod output;
-mod processor;
 mod scraper;
 mod utils;
 
 use clap::{ArgGroup, Parser};
-use color_eyre::eyre::{Context, Result, bail};
+use color_eyre::eyre::{bail, Context, Result};
 use futures::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use promkit::preset::confirm::Confirm;
 use reqwest::Client;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::fs;
@@ -31,31 +31,26 @@ struct Cli {
     targets: Vec<Url>,
 
     /// Read a list of URLs from a file (one URL per line).
-    #[arg(short = 'u', long = "urls", value_name = "PATH")]
+    #[arg(long = "urls", value_name = "PATH")]
     urls_from_file: Option<PathBuf>,
 
     /// Process only the given URL, without scraping its internal links.
     /// This flag only has an effect when a single URL is given.
-    #[arg(short = 's', long)]
+    #[arg(long)]
     single: bool,
 
     /// The name of a custom output file.
     /// If not provided, a name is generated automatically from the first input URL.
-    #[arg(short, long)]
+    #[arg(long)]
     output: Option<PathBuf>,
 
-    /// Number of parallel download requests to run concurrently.
-    #[arg(short, long, default_value_t = 10)]
-    parallel: usize,
-
     /// Copy the final Markdown output to the clipboard after saving the file.
-    #[arg(short, long)]
+    #[arg(long)]
     clipboard: bool,
 
-    /// Enable verbose output to show detailed processing steps,
-    /// including the full list of discovered URLs.
-    #[arg(short, long)]
-    verbose: bool,
+    /// Bypass confirmation prompts for scraping multiple links.
+    #[arg(long)]
+    yes: bool,
 }
 
 #[tokio::main]
@@ -64,16 +59,13 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let raw_urls = if let Some(path) = &cli.urls_from_file {
-        if cli.verbose {
-            println!("📂 Reading URLs from file: {}", path.display());
-        }
         let content = fs::read_to_string(path)
             .await
             .with_context(|| format!("Failed to read URL file: {}", path.display()))?;
         content
             .lines()
             .map(str::trim)
-            .filter(|line| !line.is_empty() && !line.starts_with('#')) // Ignore comments
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
             .filter_map(|line| line.parse::<Url>().ok())
             .collect::<Vec<_>>()
     } else {
@@ -99,18 +91,20 @@ async fn main() -> Result<()> {
         .context("failed to build HTTP client")?;
 
     let urls_to_fetch = if cli.urls_from_file.is_none() && raw_urls.len() == 1 && !cli.single {
-        let discovered_links = scraper::extract_and_sort_links(&client, &raw_urls[0], cli.verbose)
+        println!("🔍 Discovering links...");
+        let discovered_links = scraper::extract_and_sort_links(&client, &raw_urls[0])
             .await
             .context("failed to extract internal links")?;
 
-        if !discovered_links.is_empty() {
+        if !cli.yes && !discovered_links.is_empty() {
             println!(
-                "\n🔍 Found {} internal links to process:",
+                "\nFound {} internal links to process:",
                 discovered_links.len()
             );
             for (i, url) in discovered_links.iter().enumerate() {
                 println!("   {:<3} - {}", i + 1, url);
             }
+           
             println!();
 
             let mut confirm = Confirm::new("Proceed with scraping these links?");
@@ -126,10 +120,8 @@ async fn main() -> Result<()> {
                     bail!("Failed to run confirmation prompt: {}", e);
                 }
             }
-
-            println!("🚀 Proceeding with scraping...\n");
         }
-
+        println!();
         discovered_links
     } else {
         raw_urls
@@ -147,12 +139,14 @@ async fn main() -> Result<()> {
 
     let pb = multi.add(ProgressBar::new(urls_to_fetch.len() as u64));
     pb.set_style(bar_style);
+    pb.set_message("Starting download...");
 
-    let fetch_stream = futures::stream::iter(urls_to_fetch.iter().cloned().map(|url| {
-        let c = client.clone();
-        tokio::spawn(scraper::fetch_page(c, url))
-    }))
-    .buffer_unordered(cli.parallel);
+    let fetch_stream =
+        futures::stream::iter(urls_to_fetch.iter().cloned().map(|url| {
+            let c = client.clone();
+            tokio::spawn(scraper::fetch_page(c, url))
+        }))
+        .buffer_unordered(num_cpus::get());
 
     tokio::pin!(fetch_stream);
 
@@ -162,31 +156,37 @@ async fn main() -> Result<()> {
     while let Some(res) = fetch_stream.next().await {
         match res {
             Ok(Ok(page)) => {
-                let msg = if page.url.as_str().len() > 90 {
-                    format!("{}...", &page.url.as_str()[..87])
+                let msg = if page.url.as_str().len() > 80 {
+                    format!("Downloading {}...", &page.url.as_str()[..77])
                 } else {
-                    page.url.to_string()
+                    format!("Downloading {}", page.url)
                 };
                 pb.set_message(msg);
                 fetched_pages.push(page);
             }
             Ok(Err(e)) => fetch_errors.push(e),
-            Err(e) => eprintln!("⚠️  task join error: {e}"),
+            Err(e) => eprintln!("⚠️ Task join error: {e}"),
         }
         pb.inc(1);
     }
     pb.finish_and_clear();
 
-    let final_pages =
-        processor::sort_pages_by_url_order(fetched_pages, &urls_to_fetch, cli.verbose);
+    println!("📝 Converting pages to Markdown...");
+
+    let url_order_map: HashMap<_, _> = urls_to_fetch
+        .iter()
+        .enumerate()
+        .map(|(i, url)| (url, i))
+        .collect();
+    fetched_pages.sort_by_key(|page| url_order_map.get(&page.url).copied().unwrap_or(usize::MAX));
 
     let markdown_opt =
-        output::save_to_markdown_async(&final_pages, &output_path, cli.verbose, cli.clipboard)
+        output::save_to_markdown_async(&fetched_pages, &output_path, cli.clipboard)
             .await
             .context("failed to save markdown")?;
 
-    println!("✅ {} pages successfully processed.", final_pages.len());
-    println!("📄 {}", dunce::canonicalize(&output_path)?.display());
+    println!("\n✅ {} pages successfully processed.", fetched_pages.len());
+    println!("📄 Output saved to: {}", dunce::canonicalize(&output_path)?.display());
 
     if !fetch_errors.is_empty() {
         println!("\n⚠️  {} pages failed to fetch:", fetch_errors.len());
@@ -199,7 +199,7 @@ async fn main() -> Result<()> {
         }
         if rate_limited {
             println!(
-                "\n💡 It looks like you are being rate-limited; try reducing the --parallel value (e.g. 2)."
+                "\n💡 It looks like you are being rate-limited; try rerunning after a short wait."
             );
         }
     }

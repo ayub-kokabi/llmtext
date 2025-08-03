@@ -1,7 +1,8 @@
 use crate::models::PageData;
 use color_eyre::eyre::{Context, Result};
-use futures::{StreamExt, stream};
-use readability_rust::{Readability, ReadabilityOptions};
+use futures::{stream, StreamExt};
+use regex::Regex;
+use scraper::{Html, Selector};
 use std::path::Path;
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
@@ -10,13 +11,8 @@ use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 pub async fn save_to_markdown_async(
     pages: &[PageData],
     path: &Path,
-    verbose: bool,
     keep_in_memory: bool,
 ) -> Result<Option<String>> {
-    if verbose {
-        println!("📝 Generating cleaned markdown → {}", path.display());
-    }
-
     let mut file = OpenOptions::new()
         .create(true)
         .write(true)
@@ -28,34 +24,28 @@ pub async fn save_to_markdown_async(
     let rendered_chunks: Vec<String> = stream::iter(pages.iter().cloned().enumerate())
         .map(|(i, page)| {
             tokio::task::spawn_blocking(move || {
-                let options = ReadabilityOptions {
-                    char_threshold: 100,
-                    keep_classes: false,
-                    ..Default::default()
-                };
+                let document = Html::parse_document(&page.html);
+                let body_selector = Selector::parse("body").unwrap();
 
-                let Ok(mut parser) = Readability::new(&page.html, Some(options)) else {
-                    return String::new();
-                };
+                // Fallback to full HTML if body is not found
+                let body_html = document
+                    .select(&body_selector)
+                    .next()
+                    .map_or(page.html.clone(), |body| body.inner_html());
 
-                let article_result = parser.parse();
+                // Remove script tags to avoid including JavaScript code in the markdown
+                let script_regex = Regex::new(r"(?is)<script.*?</script>").unwrap();
+                let clean_html = script_regex.replace_all(&body_html, "");
 
-                let clean_html = if let Some(article) = article_result {
-                    article.content.unwrap_or_default()
-                } else {
-                    String::new()
-                };
-
-                if clean_html.is_empty() {
-                    return String::new();
-                }
+                let final_md = html2md::parse_html(&clean_html);
 
                 let mut s = String::new();
-                if i > 0 {
-                    s.push_str("\n\n\n");
+                if !final_md.trim().is_empty() {
+                    if i > 0 {
+                        s.push_str("\n\n\n");
+                    }
+                    s.push_str(&final_md);
                 }
-
-                s.push_str(&html2md::parse_html(&clean_html));
                 s
             })
         })
