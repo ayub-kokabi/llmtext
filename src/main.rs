@@ -4,7 +4,7 @@ mod scraper;
 mod utils;
 
 use clap::{ArgGroup, Parser};
-use color_eyre::eyre::{bail, Context, Result};
+use color_eyre::eyre::{Context, Result, bail};
 use futures::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use promkit::preset::confirm::Confirm;
@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
             for (i, url) in discovered_links.iter().enumerate() {
                 println!("   {:<3} - {}", i + 1, url);
             }
-           
+
             println!();
 
             let mut confirm = Confirm::new("Proceed with scraping these links?");
@@ -141,12 +141,11 @@ async fn main() -> Result<()> {
     pb.set_style(bar_style);
     pb.set_message("Starting download...");
 
-    let fetch_stream =
-        futures::stream::iter(urls_to_fetch.iter().cloned().map(|url| {
-            let c = client.clone();
-            tokio::spawn(scraper::fetch_page(c, url))
-        }))
-        .buffer_unordered(num_cpus::get());
+    let fetch_stream = futures::stream::iter(urls_to_fetch.iter().cloned().map(|url| {
+        let c = client.clone();
+        tokio::spawn(scraper::fetch_page(c, url))
+    }))
+    .buffer_unordered(num_cpus::get());
 
     tokio::pin!(fetch_stream);
 
@@ -180,13 +179,15 @@ async fn main() -> Result<()> {
         .collect();
     fetched_pages.sort_by_key(|page| url_order_map.get(&page.url).copied().unwrap_or(usize::MAX));
 
-    let markdown_opt =
-        output::save_to_markdown_async(&fetched_pages, &output_path, cli.clipboard)
-            .await
-            .context("failed to save markdown")?;
+    let markdown_opt = output::save_to_markdown_async(&fetched_pages, &output_path, cli.clipboard)
+        .await
+        .context("failed to save markdown")?;
 
     println!("\n✅ {} pages successfully processed.", fetched_pages.len());
-    println!("📄 Output saved to: {}", dunce::canonicalize(&output_path)?.display());
+    println!(
+        "📄 Output saved to: {}",
+        dunce::canonicalize(&output_path)?.display()
+    );
 
     if !fetch_errors.is_empty() {
         println!("\n⚠️  {} pages failed to fetch:", fetch_errors.len());

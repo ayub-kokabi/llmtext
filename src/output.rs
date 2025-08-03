@@ -1,6 +1,6 @@
 use crate::models::PageData;
 use color_eyre::eyre::{Context, Result};
-use futures::{stream, StreamExt};
+use futures::{StreamExt, stream};
 use regex::Regex;
 use scraper::{Html, Selector};
 use std::path::Path;
